@@ -71,104 +71,6 @@ class TiffImageInfo:
         print(f"    Image Description: {self._get_field('ImageDescription')}")
         print("\n")
 
-    # # def read_sub_region(self, x1, y1, x2, y2):
-    #     if not self.tif:
-    #         print("Cannot read TIFF file.")
-    #         return None
-
-    #     width = self._get_field('ImageWidth')
-    #     height = self._get_field('ImageLength')
-    #     samples_per_pixel = self._get_field('SamplesPerPixel')
-
-    #     # Collecting valid coordinatesq
-    #     x1 = max(0 , x1)
-    #     y1 = max(0 , y1)
-    #     x2 = min(width - 1, x2)
-    #     y2 = min(height - 1, y2)
-
-    #     # Caclulating sub-region dimensions
-    #     sub_width = x2 - x1 + 1
-    #     sub_height = y2 - y1 + 1
-
-    #     # Checking single pixel type 
-    #     bits_per_sample = self._get_field('BitsPerSample')
-    #     if bits_per_sample == 8:
-    #         image_dtype = np.uint8
-    #     elif bits_per_sample == 16:
-    #         image_dtype = np.uint16
-    #     else:
-    #         # Default to uint8 if info is missing or unexpected
-    #         image_dtype = np.uint8
-
-    #     if samples_per_pixel > 1:
-    #         sub_region = np.zeros((sub_height, sub_width, samples_per_pixel), dtype=image_dtype)
-    #     else:
-    #         sub_region = np.zeros((sub_height, sub_width), dtype=image_dtype)
-
-    #     print(f"Loading sub-region ({x1} , {y1}), to ({x2} , {y2}). Shape - {sub_region.shape}")
-
-    #     #Handling Tiled vs Stripped reading
-    #     if self.is_tiled():
-    #         tile_width = self._get_field('TileWidth')
-    #         tile_length = self._get_field('TileLength')
-    #         tiles_x_count = math.ceil(width / tile_width)
-
-    #         x_start = x1 // tile_width
-    #         y_start = y1 // tile_length
-    #         x_end = x2 // tile_width
-    #         y_end = y2 // tile_length
-
-    #         for ty in range(y_start, y_end + 1):
-    #             for tx in range(x_start, x_end + 1):
-                    
-    #                 tile_idx = ty * tiles_x_count + tx
-
-    #                 tile_x_coord = tx * tile_width
-    #                 tile_y_coord = ty * tile_length
-
-    #                 try:
-    #                     tile_data = self.tif.read_tiles(tile_idx)
-    #                 except AttributeError:
-    #                      tile_data = self.tif.read_tiles(tile_x_coord, tile_y_coord)
-    #                      continue
-                    
-    #                 global_x_start = tile_x_coord # tx * tile_width
-    #                 global_y_start = tile_y_coord # ty * tile_length
-
-    #                 # Calculate overlap between tile and requested sub-region
-    #                 overlap_x_start = max(x1, global_x_start)
-    #                 overlap_y_start = max(y1, global_y_start)
-    #                 overlap_x_end = min(x2, global_x_start + tile_width - 1)
-    #                 overlap_y_end = min(y2, global_y_start + tile_length - 1)
-
-    #                 tile_slice_x_start = overlap_x_start - global_x_start
-    #                 tile_slice_y_start = overlap_y_start - global_y_start
-    #                 tile_slice_x_end = tile_slice_x_start + (overlap_x_end - overlap_x_start) + 1
-    #                 tile_slice_y_end = tile_slice_y_start + (overlap_y_end - overlap_y_start) + 1
-
-    #                 # Calculate the slice in the final subregion
-    #                 sub_slice_x_start = overlap_x_start - x1
-    #                 sub_slice_y_start = overlap_y_start - y1
-    #                 sub_slice_x_end = sub_slice_x_start + (overlap_x_end - overlap_x_start) + 1
-    #                 sub_slice_y_end = sub_slice_y_start + (overlap_y_end - overlap_y_start) + 1
-
-    #                 if samples_per_pixel > 1:
-    #                     sub_region[sub_slice_y_start:sub_slice_y_end, sub_slice_x_start:sub_slice_x_end, :] = \
-    #                     tile_data[tile_slice_y_start:tile_slice_y_end, tile_slice_x_start:tile_slice_x_end, :]
-    #                 else:
-    #                     sub_region[sub_slice_y_start:sub_slice_y_end, sub_slice_x_start:sub_slice_x_end] = \
-    #                     tile_data[tile_slice_y_start:tile_slice_y_end,  tile_slice_x_start:tile_slice_x_end]
-        
-    #     else:
-    #         # Handleing Striped images, but here we need to read whole image
-    #         print("Striped images require full image load in order to crop into subregions.")
-    #         full_image = self.tif.read_image()
-    #         if full_image is not None:
-    #             sub_region = full_image[y1:y2+1, x1:x2+1]
-    #         else:
-    #             return None
-    #     return sub_region
-
     @staticmethod
     def combine_images(image_a, image_b, image_c, output):
         try:
@@ -205,3 +107,20 @@ class TiffImageInfo:
         
         except Exception as e:
             print(f"Error saving combined image: {e}")
+
+    def process_sub_images(self, filename):
+        
+        if not self.tif:
+            print(f"Failed to open TIFF file: {filename}")
+            return
+
+        dir_count = 0
+
+        while self.tif.SetDirectory(dir_count):
+            print(self.tif.SetDirectory)
+            print(f"\nDirectory {dir_count} ")
+            self.print_image_info()
+            dir_count += 1
+
+        if dir_count == 0:
+            print("Other TIFF directories was not found.")
