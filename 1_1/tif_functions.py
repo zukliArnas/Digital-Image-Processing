@@ -71,43 +71,52 @@ class TiffImageInfo:
         print(f"    Image Description: {self._get_field('ImageDescription')}")
         print("\n")
 
+
+    @staticmethod
+    def to_8bit(image_array):
+        img_float = image_array.astype(np.float64)
+        max_val = img_float.max()
+        
+        normalized_img = (img_float / max_val) * 255.0
+        return normalized_img.astype(np.uint8)
+    
     @staticmethod
     def combine_images(image_a, image_b, image_c, output):
         try:
-            tif_a = TIFF.open(image_a, mode='r')
-            img_a = tif_a.read_image()
-            tif_a.close()
+            tif_r = TIFF.open(image_a, mode='r')
+            img_r = TiffImageInfo.to_8bit(tif_r.read_image())
+            tif_r.close()
 
+            # DAPI (B channel)
             tif_b = TIFF.open(image_b, mode='r')
-            img_b = tif_b.read_image()
+            img_b = TiffImageInfo.to_8bit(tif_b.read_image())
             tif_b.close()
 
-            tif_c = TIFF.open(image_c, mode='r')
-            img_c = tif_c.read_image()
-            tif_c.close()
-
+            # FITC (G channel)
+            tif_g = TIFF.open(image_c, mode='r')
+            img_g = TiffImageInfo.to_8bit(tif_g.read_image())
+            tif_g.close()
         except Exception as e:
             print(f"Error reading TIFF file: {e}")
             return
 
-        if not (img_a.shape == img_b.shape == img_c.shape):
+        if not (img_r.shape == img_b.shape == img_g.shape):
             print("Error: Images must have the same dimensions to be combined.")
             return
 
-        combined_image = np.dstack([img_a, img_b, img_c])
-
+        combined_image = np.dstack([img_r, img_g, img_b])
+        
         try:
             tif_out = TIFF.open(output, mode='w')
-                
-            # Write the image data
             tif_out.write_image(combined_image, write_rgb=True)
             tif_out.close()
-        
-            print(f"Successfully saved combined image")
-        
+                
         except Exception as e:
             print(f"Error saving combined image: {e}")
 
+        print(f"Successfully saved combined image")
+        return combined_image
+    
     def process_sub_images(self, filename):
         
         if not self.tif:

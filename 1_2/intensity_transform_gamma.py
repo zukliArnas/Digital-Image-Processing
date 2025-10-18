@@ -1,15 +1,16 @@
 import sys
 from functions import TiffImageInfo 
 
-IMAGE_PATH = sys.argv[1]
 
-GAMMA_VALUES_TO_TEST = [0.3, 0.5, 1.0, 1.2, ] 
+GAMMA_VALUES_TO_TEST = [0.3, 0.5, 1.5, 3] 
 
 if __name__ == "__main__":
 
     if len(sys.argv) != 2:
         print("Usage: python intensity_transform_gamma.py <filne_name.tif> ")
         sys.exit(1)
+
+    IMAGE_PATH = sys.argv[1]
 
     img = TiffImageInfo(IMAGE_PATH)
 
