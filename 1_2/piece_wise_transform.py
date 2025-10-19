@@ -1,7 +1,8 @@
 import sys
 from functions import TiffImageInfo
 
-if __name__ == "__main__":
+
+def main():
     if len(sys.argv) != 2:
         print("Usage: python piece_wise_transform.py <filename.tif>")
         sys.exit(1)
@@ -13,3 +14,9 @@ if __name__ == "__main__":
     if img_array is not None:
         img.visualize_piecewise_linear(img_array)
         img.visualize_threshold(img_array, threshold_value=120)
+    else:
+        print("Error: Could not read image data.")
+
+
+if __name__ == "__main__":
+    main()

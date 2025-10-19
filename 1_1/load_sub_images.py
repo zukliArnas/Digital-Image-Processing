@@ -4,7 +4,7 @@ import sys
 def main():
 
     if len(sys.argv) < 2:
-        print("Usage: python load_image.py <tiff_filename>")
+        print("Usage: python load_sub_images.py <tiff_filename>")
         sys.exit(1)
 
     filename = sys.argv[1]

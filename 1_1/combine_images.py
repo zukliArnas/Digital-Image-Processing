@@ -1,7 +1,6 @@
 import sys
 from tif_functions import TiffImageInfo
 
-output = sys.argv[1]
 image_a = 'data/imgset1/Region_001_FOV_00041_Acridine_Or_Gray.tif'
 image_b = 'data/imgset1/Region_001_FOV_00041_DAPI_Gray.tif'
 image_c = 'data/imgset1/Region_001_FOV_00041_FITC_Gray.tif'
