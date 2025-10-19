@@ -1,10 +1,14 @@
-from libtiff import TIFF
-import numpy as np
-from matplotlib import pyplot as plt
+from libtiff import TIFF # type: ignore
+import numpy as np # type: ignore
+from numpy import ndarray # type: ignore
+from matplotlib import pyplot as plt # type: ignore
 
 class TiffImageInfo:
+    """
+    A helper class for handling TIFF image files.
+    """
     
-    def __init__(self, filename):
+    def __init__(self, filename: str):
         self.filename = filename
         try:
             self.tif = TIFF.open(filename)
@@ -16,10 +20,10 @@ class TiffImageInfo:
         if self.tif:
             self.tif.close()
 
-    def is_gray_scale(self, image):
+    def is_gray_scale(self, image: ndarray) -> bool:
         return image.ndim == 2
         
-    def visualise_image(self):
+    def visualise_image(self) -> None:
         
         image = self.tif.read_image()
         if image is None:
@@ -37,15 +41,17 @@ class TiffImageInfo:
         plt.axis('off')
         plt.show()
     
-    def _get_field(self, tag_name):
+    def _get_field(self, tag_name: str):
+        """Retrieve a TIFF metadata field if available."""
         if self.tif:
             return self.tif.GetField(tag_name)
         return None
 
-    def is_tiled(self):
+    def is_tiled(self) -> bool:
         return self._get_field('TileWidth') is not None
 
-    def print_image_info(self):
+    def print_image_info(self) -> None:
+        """Print basic metadata and structure info for the TIFF image."""
         if not self.tif:
             print("Cannot print tiff info")
             return
@@ -62,6 +68,7 @@ class TiffImageInfo:
             rows_per_strip = self._get_field('RowsPerStrip')
             strip_offsets = self._get_field('StripOffsets')
             print(f"    Rows Per Strip: {rows_per_strip}")
+
         print(f"    Depth (BitsPerSample): {self._get_field('BitsPerSample')}")
         print(f"    Samples/Pixel: {self._get_field('SamplesPerPixel')}")
         print(f"    Compression Scheme: {self._get_field('Compression')}")
@@ -71,17 +78,18 @@ class TiffImageInfo:
         print(f"    Image Description: {self._get_field('ImageDescription')}")
         print("\n")
 
-
     @staticmethod
-    def to_8bit(image_array):
+    def to_8bit(image_array: ndarray) -> ndarray:
+        """Normalize any image array to 8-bit (0–255) range."""
         img_float = image_array.astype(np.float64)
         max_val = img_float.max()
-        
         normalized_img = (img_float / max_val) * 255.0
         return normalized_img.astype(np.uint8)
     
     @staticmethod
-    def combine_images(image_a, image_b, image_c, output):
+    def combine_images(
+        image_a: str, image_b: str, image_c: str, output: str
+    ) -> ndarray | None:
         try:
             tif_r = TIFF.open(image_a, mode='r')
             img_r = TiffImageInfo.to_8bit(tif_r.read_image())
@@ -98,11 +106,11 @@ class TiffImageInfo:
             tif_g.close()
         except Exception as e:
             print(f"Error reading TIFF file: {e}")
-            return
+            return None
 
         if not (img_r.shape == img_b.shape == img_g.shape):
             print("Error: Images must have the same dimensions to be combined.")
-            return
+            return None
 
         combined_image = np.dstack([img_r, img_g, img_b])
         
@@ -117,11 +125,11 @@ class TiffImageInfo:
         print(f"Successfully saved combined image")
         return combined_image
     
-    def process_sub_images(self, filename):
+    def process_sub_images(self, filename: str) -> int:
         
         if not self.tif:
             print(f"Failed to open TIFF file: {filename}")
-            return
+            return 0
 
         dir_count = 0
 
@@ -133,3 +141,4 @@ class TiffImageInfo:
 
         if dir_count == 0:
             print("Other TIFF directories was not found.")
+        return dir_count

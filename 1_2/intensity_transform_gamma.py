@@ -14,7 +14,7 @@ def main():
     img = TiffImageInfo(IMAGE_PATH)
 
     if img.tif:
-        img.visualize_gamma_effect(IMAGE_PATH, GAMMA_VALUES_TO_TEST)
+        img.visualize_gamma_effect(GAMMA_VALUES_TO_TEST)
     else:
         print(f"Cannot run visualization. TIFF file handle for {IMAGE_PATH} is closed or invalid.")
 
