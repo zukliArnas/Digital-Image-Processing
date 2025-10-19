@@ -19,28 +19,28 @@ class TiffImageInfo:
             self.tif.close()
 
     def read_image_data(self) -> ndarray | None:
-        
+        """
+        Read image data from the TIFF file, ensuring it’s 8-bit grayscale.
+        """
         if not self.tif:
             return None
         
         try:
             arr_orig = self.tif.read_image()
-            
-            # --- Enforce 8-bit Grayscale ---
-            
-            # 1. Check for 16-bit data and stop (as requested)
+                        
+            # Check for 16-bit data and stop (as requested)
             if arr_orig.dtype == np.uint16:
                 print(f"Error: Image {self.filename} is 16-bit ({arr_orig.dtype}).")
                 return None
             
-            # 2. Handle Multi-channel (e.g., RGB) images
+            # Handle Multi-channel images
             if arr_orig.ndim > 2:
                 print(f"Input image is multi-channel ({arr_orig.ndim} dimensions). Taking the first channel as grayscale.")
                 arr_orig = arr_orig[:, :, 0]
             
-            # 3. Ensure final type is 8-bit unsigned integer (np.uint8)
+            # Ensure type is 8-bit unsigned integer
             if arr_orig.dtype != np.uint8:
-                print(f"Warning: Converting input image from {arr_orig.dtype} to 8-bit (uint8).")
+                print(f"Converting input image from {arr_orig.dtype} to 8-bit (uint8).")
                 arr_orig = arr_orig.astype(np.uint8)
                     
             return arr_orig
@@ -49,32 +49,36 @@ class TiffImageInfo:
             print(f"Error reading image data from {self.filename}: {e}")
             return None
 
-    def index_to_local(self, i, j, H, W):
+    def index_to_local(self, i: int, j: int, H: int, W: int) -> tuple[float, float]:
         x = j - (W - 1) / 2
         y = (H - 1) / 2 - i
         return x, y
 
-    def local_to_world(self, x, y, pixel_size_x, pixel_size_y):
+    def local_to_world(self, x: float, y: float, pixel_size_x: float, pixel_size_y: float) -> tuple[float, float]:
         X = x * pixel_size_x
         Y = y * pixel_size_y
         return X, Y
 
-    def index_to_world(self, i, j, H, W, pixel_size_x, pixel_size_y):
+    def index_to_world(
+        self, i: int, j: int, H: int, W: int, pixel_size_x: float, pixel_size_y: float
+    ) -> tuple[float, float]:
         x, y = self.index_to_local(i, j, H, W)
         X, Y = self.local_to_world(x, y, pixel_size_x, pixel_size_y)
         return X, Y
 
     @staticmethod
-    def visualize_coordinate_systems(H=256, W=256, pixel_size_x=0.5, pixel_size_y=0.5):
-        # Create a blank image (for visualization)
+    def visualize_coordinate_systems(H: int = 256, W: int = 256, pixel_size_x: float = 0.5, pixel_size_y: float = 0.5) -> None:
+        """
+        Visualize the relationship between index, local, and world coordinate systems.
+        """
+        # blank image
         img = np.zeros((H, W), dtype=np.uint8)
         img[H//2, :] = 255  # horizontal center line
         img[:, W//2] = 255  # vertical center line
 
-        # Define a few sample points: top-left, center, bottom-right
         sample_points = [(0, 0), (H//2, W//2), (H-1, W-1)]
 
-        # --- Compute coordinate mappings ---
+        #  Compute coordinate mappings 
         coords = []
         for (i, j) in sample_points:
             # index -> local
@@ -87,10 +91,10 @@ class TiffImageInfo:
 
             coords.append(((i, j), (x, y), (X, Y)))
 
-        # --- Visualization ---
-        fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+        #  Visualization 
+        _, axes = plt.subplots(1, 3, figsize=(15, 4))
 
-        # 1️⃣ Index Coordinates
+        # Index Coordinates
         axes[0].imshow(img, cmap='gray', origin='upper')
         for (i, j), _, _ in coords:
             axes[0].plot(j, i, 'ro')
@@ -100,7 +104,7 @@ class TiffImageInfo:
         axes[0].set_xlabel("j (column)")
         axes[0].set_ylabel("i (row)")
 
-        # 2️⃣ Local Coordinates
+        # Local Coordinates
         xs = [x for _, (x, _), _ in coords]
         ys = [y for _, (_, y), _ in coords]
         axes[1].scatter(xs, ys, color='blue')
@@ -113,7 +117,7 @@ class TiffImageInfo:
         axes[1].axvline(0, color='gray', linestyle='--')
         axes[1].set_aspect('equal')
 
-        # 3️⃣ World Coordinates
+        # World Coordinates
         Xs = [X for _, _, (X, _) in coords]
         Ys = [Y for _, _, (_, Y) in coords]
         axes[2].scatter(Xs, Ys, color='green')
@@ -129,21 +133,21 @@ class TiffImageInfo:
         plt.tight_layout()
         plt.show()
 
-    def affine_translation(self, tx, ty):
+    def affine_translation(self, tx: float, ty: float) -> ndarray:
         return np.array([
             [1, 0, tx],
             [0, 1, ty],
             [0, 0, 1]
         ], dtype=np.float32)
 
-    def affine_scaling(self, sx, sy):
+    def affine_scaling(self, sx: float, sy: float) -> ndarray:
         return np.array([
             [sx, 0, 0],
             [0, sy, 0],
             [0, 0, 1]
         ], dtype=np.float32)
 
-    def affine_rotation(self, theta_deg):
+    def affine_rotation(self, theta_deg: float) -> ndarray:
         theta = math.radians(theta_deg)
         return np.array([
             [math.cos(theta), -math.sin(theta), 0],
@@ -165,10 +169,25 @@ class TiffImageInfo:
             result = M @ result  # Right-multiplication
         return result
 
-    def apply_affine_transform(self, image, M):
+    def affine_rotation_around_center(self, angle_deg: float, img_shape: tuple[int, int]) -> ndarray:
+        """ Create a rotation matrix around the image center."""
+        h, w = img_shape
+        cx, cy = w / 2, h / 2
+        angle = np.deg2rad(angle_deg)
+
+        T1 = np.array([[1, 0, -cx], [0, 1, -cy], [0, 0, 1]])
+        R = np.array(
+            [[np.cos(angle), -np.sin(angle), 0],
+             [np.sin(angle),  np.cos(angle), 0],
+             [0, 0, 1]]
+        )
+        T2 = np.array([[1, 0, cx], [0, 1, cy], [0, 0, 1]])
+
+        return T2 @ R @ T1
+
+    def apply_affine_transform(self, image: ndarray, M: ndarray) -> ndarray:
         """
-        Applies an affine transformation to a grayscale image (without interpolation).
-        Any unmapped pixels will appear black.
+        Applies an affine transformation to a grayscale image.
         """
         H, W = image.shape
         transformed = np.zeros_like(image)
@@ -186,7 +205,7 @@ class TiffImageInfo:
         return transformed
 
 
-    def visualize_composite_affine(self, image_array):
+    def visualize_composite_affine(self, image_array: ndarray) -> None:
         """
         Apply a composite affine transformation to an image (translation, scaling, rotation)
         and visualize the result.
@@ -214,8 +233,8 @@ class TiffImageInfo:
         plt.tight_layout()
         plt.show()
 
-    def get_pixel_value(self, img, x, y, method="nearest"):
-        """Fetch interpolated pixel value from image at (x, y)."""
+    def get_pixel_value(self, img: ndarray, x: float, y: float, method: str = "nearest") -> float:
+        """ Get pixel value at (x, y) using nearest or bilinear interpolation."""
         H, W = img.shape
 
         if method == "nearest":
@@ -247,7 +266,7 @@ class TiffImageInfo:
         else:
             raise ValueError("Unknown interpolation method")
 
-    def apply_affine_transform_interp(self, image, M, method="nearest"):
+    def apply_affine_transform_interp(self, image: ndarray, M: ndarray, method: str = "nearest") -> ndarray:
         """Apply affine transform using nearest or bilinear interpolation."""
         H, W = image.shape
         transformed = np.zeros((int(H * 1.5), int(W * 1.5)), dtype=np.uint8)
@@ -262,7 +281,7 @@ class TiffImageInfo:
         return np.clip(transformed, 0, 255).astype(np.uint8)
 
 
-    def visualize_interpolation_effects(self, image_array):
+    def visualize_interpolation_effects(self, image_array: ndarray) -> None:
         R_centered = self.affine_rotation_around_center(45, image_array.shape)
         T = self.affine_translation(3, 3)
         S = self.affine_scaling(1.2, 1.2)
@@ -287,19 +306,32 @@ class TiffImageInfo:
         plt.tight_layout()
         plt.show()
 
-    def affine_rotation_around_center(self, angle_deg, img_shape):
-            """Rotation matrix around image center."""
-            h, w = img_shape
-            cx, cy = w / 2, h / 2
-            angle = np.deg2rad(angle_deg)
 
-            # Translation to center, rotation, and translation back
-            T1 = np.array([[1, 0, -cx], [0, 1, -cy], [0, 0, 1]])
-            R = np.array([
-                [np.cos(angle), -np.sin(angle), 0],
-                [np.sin(angle),  np.cos(angle), 0],
-                [0, 0, 1]
-            ])
-            T2 = np.array([[1, 0, cx], [0, 1, cy], [0, 0, 1]])
+    def visualize_various_affine_transforms(self, img_array):
+        transforms = {
+            "Translation": self.affine_translation(40, 30),
+            "Rotation": self.affine_rotation(45),
+            "Scaling": self.affine_scaling(1.5, 1.5),
+            "Shear": self.affine_shear(0.3, 0)
+        }
 
-            return T2 @ R @ T1
+        fig, axes = plt.subplots(len(transforms), 3, figsize=(12, 10))
+
+        for idx, (name, M) in enumerate(transforms.items()):
+            nearest_img = self.apply_affine_transform_interp(img_array, M, "nearest")
+            bilinear_img = self.apply_affine_transform_interp(img_array, M, "bilinear")
+
+            axes[idx, 0].imshow(img_array, cmap='gray')
+            axes[idx, 0].set_title("Original")
+            axes[idx, 0].axis('off')
+
+            axes[idx, 1].imshow(nearest_img, cmap='gray')
+            axes[idx, 1].set_title(f"{name}\nNearest Neighbor")
+            axes[idx, 1].axis('off')
+
+            axes[idx, 2].imshow(bilinear_img, cmap='gray')
+            axes[idx, 2].set_title(f"{name}\nBilinear Interpolation")
+            axes[idx, 2].axis('off')
+
+        plt.tight_layout()
+        plt.show()
