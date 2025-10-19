@@ -4,7 +4,7 @@ from functions import TiffImageInfo
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python blurring.py <filename.tif>")
+        print("Usage: python composite.py <filename.tif>")
         sys.exit(1)
 
     IMAGE_PATH = sys.argv[1]
@@ -12,7 +12,7 @@ def main():
     img_array = img.read_image_data()
 
     if img_array is not None:
-        img.visualize_blur(img_array)
+        img.visualize_composite_affine(img_array)
     else:
         print("Error: Could not read image data.")
 
